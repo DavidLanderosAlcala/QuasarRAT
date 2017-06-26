@@ -8,10 +8,6 @@ using xServer.Core.Extensions;
 
 namespace xServer.Core.Networking
 {
-    public interface SocketHandler { }
-    public class ClassicSocket : SocketHandler { }
-    public class TunnelSocket : SocketHandler { }
-
     public class NetworkTunnel
     {
         /// <summary>

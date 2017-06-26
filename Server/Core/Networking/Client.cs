@@ -141,7 +141,7 @@ namespace xServer.Core.Networking
         /// <summary>
         /// Handle of the Client Socket.
         /// </summary>
-        private Socket _handle;
+        private SocketHandler _handle;
 
         /// <summary>
         /// The Queue which holds buffers to send.
@@ -239,7 +239,7 @@ namespace xServer.Core.Networking
         private const bool encryptionEnabled = true;
         private const bool compressionEnabled = true;
 
-        public Client(Server parentServer, Socket socket)
+        public Client(Server parentServer, SocketHandler socket)
         {
             try
             {

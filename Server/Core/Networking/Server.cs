@@ -323,7 +323,8 @@ namespace xServer.Core.Networking
                             if (BufferManager.BuffersAvailable == 0)
                                 BufferManager.IncreaseBufferCount(1);
 
-                            Client client = new Client(this, e.AcceptSocket);
+                            ClassicSocket csocket = new ClassicSocket(e.AcceptSocket);
+                            Client client = new Client(this, csocket);
                             AddClient(client);
                             OnClientState(client, true);
                             break;

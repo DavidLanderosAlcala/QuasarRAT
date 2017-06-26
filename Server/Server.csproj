@@ -161,6 +161,10 @@
     <Compile Include="Core\NetSerializer\TypeSerializers\GenericSerializer.cs" />
     <Compile Include="Core\NetSerializer\TypeSerializers\ObjectSerializer.cs" />
     <Compile Include="Core\NetSerializer\TypeSerializers\PrimitivesSerializer.cs" />
+    <Compile Include="Core\Networking\ClassicSocket.cs" />
+    <Compile Include="Core\Networking\NetworkTunnel.cs" />
+    <Compile Include="Core\Networking\SocketHandler.cs" />
+    <Compile Include="Core\Networking\TunnelSocket.cs" />
     <Compile Include="Core\Packets\ClientPackets\GetChangeRegistryValueResponse.cs" />
     <Compile Include="Core\Packets\ClientPackets\GetConnectionsResponse.cs" />
     <Compile Include="Core\Packets\ClientPackets\GetCreateRegistryKeyResponse.cs" />
