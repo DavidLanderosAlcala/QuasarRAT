@@ -309,6 +309,11 @@ namespace xServer.Core.Networking
                 return;
             }
 
+            // FileStream fs = new FileStream("payload.bin", FileMode.Create);
+            // BinaryWriter binaryWriter = new BinaryWriter(fs);
+            // fs.Write(received, 0, received.Length);
+            // fs.Close();
+
             lock (_readBuffers)
             {
                 _readBuffers.Enqueue(received);

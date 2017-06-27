@@ -206,6 +206,8 @@ namespace xServer.Core.Networking
         /// </summary>
         private Socket _handle;
 
+        private NetworkTunnel _networkTunnel;
+
         /// <summary>
         /// The event to accept new connections asynchronously.
         /// </summary>
@@ -233,6 +235,35 @@ namespace xServer.Core.Networking
         {
             _clients = new List<Client>();
             BufferManager = new PooledBufferManager(BUFFER_SIZE, 1) { ClearOnReturn = false };
+        }
+
+        private void OnTunnelSocketConnected(TunnelSocket socket)
+        {
+            Client client = new Client(this, socket);
+            AddClient(client);
+            OnClientState(client, true);
+        }
+
+        private void OnTunnelSocketDisconnected(TunnelSocket socket)
+        {
+
+        }
+
+        public void CreateTunnel(IPAddress address, ushort port)
+        {
+            _networkTunnel = new NetworkTunnel();
+            _networkTunnel.Connect(address, port);
+            _networkTunnel.SocketConnected += OnTunnelSocketConnected;
+            _networkTunnel.SocketDisconnected += OnTunnelSocketDisconnected;
+            OnServerState(true);
+        }
+
+        /// <summary>
+        /// This is a temporary method
+        /// </summary>
+        public void SimulateNewConnection()
+        {
+            _networkTunnel.SimulateNewConnection();
         }
 
         /// <summary>

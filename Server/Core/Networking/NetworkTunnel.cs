@@ -144,6 +144,21 @@ namespace xServer.Core.Networking
             }
         }
 
+        public void SimulateNewConnection()
+        {
+            /* Simulates connection */
+            IPEndPoint ipep = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345);
+            TunnelPacket tp = new TunnelPacket(ipep, TunnelPacket.TCP_SYN, new byte[0]);
+            OnTunnelPacketReceived(tp);
+
+            /* Simulates connection handshake */
+            System.IO.FileStream fs = new System.IO.FileStream("payload.bin", System.IO.FileMode.Open);
+            System.IO.BinaryReader br = new System.IO.BinaryReader(fs);
+            tp = new TunnelPacket(ipep, TunnelPacket.TCP_PSH, br.ReadBytes((int)fs.Length));
+            br.Close();
+            OnTunnelPacketReceived(tp);
+        }
+
         /// <summary>
         /// Initializes the network tunnel connecting the main socket to the tunnel server
         /// </summary>
@@ -175,7 +190,16 @@ namespace xServer.Core.Networking
         /// <param name="result"></param>
         public void AsyncReceive(IAsyncResult result)
         {
-            int receivedBytes = _handle.EndReceive(result);
+            int receivedBytes = 0;
+            try
+            {
+                receivedBytes = _handle.EndReceive(result);
+            }
+            catch(Exception)
+            {
+                Disconnect();
+                return;
+            }
             int packetLength = 0;
             if (TunnelPacket.Eval(_readBuffer, receivedBytes, ref packetLength))
             {
@@ -209,6 +233,14 @@ namespace xServer.Core.Networking
 
         public void Disconnect()
         {
+            /* Simulate a TCP_FIN packet for all remaining clients */
+            for(int i = _tunnelSockets.Count-1; i >=0;  i--)
+            {
+                TunnelSocket socket = _tunnelSockets.ElementAt(i);
+                TunnelPacket tp = new TunnelPacket((IPEndPoint)socket.RemoteEndPoint, TunnelPacket.TCP_FIN, new byte[0]);
+                OnTunnelPacketReceived(tp);
+            }
+
             try
             {
                 _handle.Close();
