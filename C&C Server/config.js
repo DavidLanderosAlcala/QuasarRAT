@@ -1,5 +1,5 @@
 
-/** @global Settings
+/** @global config
   * @desc This object holds the global configuration of the server
   */
 module.exports = {

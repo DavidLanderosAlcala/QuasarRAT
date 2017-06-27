@@ -5,7 +5,7 @@
 
 var net = require("net");
 var os = require("os");
-var settings = require("./settings.js");
+var config = require("./config.js");
 
 /** @module Utils
   * @desc The Utils module provides access to some utility functions
@@ -222,13 +222,13 @@ var CCServer = (function() {
         net.createServer(function(socket) {
         	StartHandShaking(socket, function(authorized) {
                 if(authorized) {
-                    Tunnel.init(socket, settings.clientPort);
+                    Tunnel.init(socket, config.clientPort);
                 }
                 else {
                 	socket.end();
                 }
         	});
-        }).listen(settings.adminPort);
+        }).listen(config.adminPort);
     }
 
     function StartHandShaking(socket, callback) {
