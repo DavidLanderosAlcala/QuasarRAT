@@ -17,6 +17,19 @@ namespace xServer.Core.Networking
         byte[] _readBuffer;
 
         /// <summary>
+        /// List of sockets connected through the tunnel.
+        /// </summary>
+        List<TunnelSocket> _tunnelSockets;
+
+        /// <summary>
+        /// Gets the sockets currently connected through the tunnel.
+        /// </summary>
+        public TunnelSocket[] TunnelSockets
+        {
+            get { return _tunnelSockets.ToArray(); }
+        }
+
+        /// <summary>
         /// The keep-alive time in ms.
         /// </summary>
         public uint KEEP_ALIVE_TIME { get { return 25000; } } // 25s
@@ -29,13 +42,18 @@ namespace xServer.Core.Networking
         /// <summary>
         /// Occurs when a new socket is connected
         /// </summary>
-        public event SocketConnectedEventHandler SocketConnected;
+        public event SocketConnectionEventHandler SocketConnected;
 
         /// <summary>
-        /// Represents the method that will handle new TunnelSocket connection event
+        /// Occurs when a new socket is connected
         /// </summary>
-        /// <param name="s">The TunnelSocket wich represents the new connection.</param>
-        public delegate void SocketConnectedEventHandler(TunnelSocket s);
+        public event SocketConnectionEventHandler SocketDisconnected;
+
+        /// <summary>
+        /// Represents the method that will handle connection events
+        /// </summary>
+        /// <param name="s">The TunnelSocket wich represents the connection.</param>
+        public delegate void SocketConnectionEventHandler(TunnelSocket s);
 
         /// <summary>
         /// NetworkTunnel fail event and event-handler
@@ -46,6 +64,7 @@ namespace xServer.Core.Networking
         public NetworkTunnel()
         {
             _readBuffer = new byte[1024];
+            _tunnelSockets = new List<TunnelSocket>();
         }
 
         /// <summary>
@@ -54,8 +73,23 @@ namespace xServer.Core.Networking
         /// <param name="s">The TunnelSocket wich represents the new connection.</param>
         public void OnSocketConnected(TunnelSocket s)
         {
+            _tunnelSockets.Add(s);
             var handler = SocketConnected;
             if(handler != null)
+            {
+                handler(s);
+            }
+        }
+
+        /// <summary>
+        /// Fires an event that informs subscribers that a new socket has been disconnected.
+        /// </summary>
+        /// <param name="s">The TunnelSocket wich represents the lost connection.</param>
+        public void OnSocketDisconnected(TunnelSocket s)
+        {
+            _tunnelSockets.Remove(s);
+            var handler = SocketDisconnected;
+            if (handler != null)
             {
                 handler(s);
             }
@@ -70,6 +104,43 @@ namespace xServer.Core.Networking
             if (handler != null)
             {
                 handler(ex);
+            }
+        }
+
+        private void OnDataReceived(IPEndPoint remoteEndPoint, byte[] payload)
+        {
+            findSocketByEndPoint(remoteEndPoint).Receive(payload);
+        }
+
+        private TunnelSocket findSocketByEndPoint(IPEndPoint ipep)
+        {
+            return _tunnelSockets.Find(x => x.RemoteEndPoint.Equals(ipep));
+        }
+
+        /// <summary>
+        /// Called when a valid tunnel packet arrives through the tunnel
+        /// </summary>
+        /// <param name="packet"></param>
+        private void OnTunnelPacketReceived(TunnelPacket packet)
+        {
+            switch(packet.Type)
+            {
+                case TunnelPacket.TCP_SYN :
+                    {
+                        TunnelSocket ts = new TunnelSocket(this, packet.RemoteEndPoint);
+                        OnSocketConnected(ts);
+                        break;
+                    }
+                case TunnelPacket.TCP_PSH:
+                    {
+                        OnDataReceived(packet.RemoteEndPoint, packet.Payload);
+                        break;
+                    }
+                case TunnelPacket.TCP_FIN:
+                    {
+                        OnSocketDisconnected(findSocketByEndPoint(packet.RemoteEndPoint));
+                        break;
+                    }
             }
         }
 
@@ -104,7 +175,24 @@ namespace xServer.Core.Networking
         /// <param name="result"></param>
         public void AsyncReceive(IAsyncResult result)
         {
-            /* To be implemented */
+            int receivedBytes = _handle.EndReceive(result);
+            int packetLength = 0;
+            if (TunnelPacket.Eval(_readBuffer, receivedBytes, ref packetLength))
+            {
+                byte[] rawPacket = new byte[packetLength];
+                Array.Copy(_readBuffer, rawPacket, packetLength);
+                TunnelPacket tp = new TunnelPacket(rawPacket);
+                OnTunnelPacketReceived(tp);
+            }
+            else
+            {
+                /* Invalid or incomplete packet */
+            }
+
+            if (_handle.Connected)
+            {
+                _handle.BeginReceive(_readBuffer, 0, _readBuffer.Length, SocketFlags.None, AsyncReceive, null);
+            }
         }
 
         public int Send(TunnelSocket socket, byte[] packet)
@@ -219,6 +307,33 @@ namespace xServer.Core.Networking
                 Array.Copy(len, 0, serialized, address.Length + port.Length + 1, 2);
                 Array.Copy(_payload, 0, serialized, address.Length + port.Length + 3, _length);
                 return serialized;
+            }
+
+
+            /// <summary>
+            /// Checks whether a buffer contains a valid TunnelPacket
+            /// </summary>
+            /// <param name="buffer">The buffer to be checked</param>
+            /// <param name="packetLength">Variable to store the length of the tunnel packet</param>
+            /// <returns> returns true whether to buffer contains a valid tunnel packet </returns>
+            public static bool Eval(byte[] buffer, int length, ref int packetLength)
+            {
+                // a valid packet has at least 9 bytes to cover all headers
+                if (length < 9) return false;
+                // reading the payload size
+                byte[] tmp = new byte[2];
+                Array.Copy(buffer, 7, tmp, 0, 2);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(tmp);
+                }
+                ushort payloadLength = BitConverter.ToUInt16(tmp, 0);
+                if (length >= 9 + payloadLength)
+                {
+                    packetLength = 9 + payloadLength;
+                    return true;
+                }
+                return false;
             }
         }
     }

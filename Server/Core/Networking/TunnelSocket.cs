@@ -56,6 +56,17 @@ namespace xServer.Core.Networking
              */
         }
 
+        /// <summary>
+        /// Forces this socket to behave as if it had received an IP Packet
+        /// </summary>
+        /// <param name="buffer"></param>
+        public void Receive(byte[] buffer)
+        {
+            TunnelSocketIAsyncResult result = new TunnelSocketIAsyncResult(buffer.Length);
+            Array.Copy(buffer, _readBuffer, buffer.Length);
+            _readCallback(result);
+        }
+
         public class TunnelSocketIAsyncResult : IAsyncResult
         {
             private int _packetLength;
