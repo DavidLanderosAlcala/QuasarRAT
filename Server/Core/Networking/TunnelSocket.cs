@@ -26,31 +26,34 @@ namespace xServer.Core.Networking
             _remoteEndPoint = remoteEndPoint;
         }
 
-        IAsyncResult SocketHandler.BeginReceive(byte[] buffer, int offset, int size, SocketFlags socketFlags, AsyncCallback callback, object state)
+        public IAsyncResult BeginReceive(byte[] buffer, int offset, int size, SocketFlags socketFlags, AsyncCallback callback, object state)
         {
             _readBuffer = buffer;
             _readCallback = callback;
             return null;
         }
 
-        void SocketHandler.Close()
+        public void Close()
         {
-            throw new NotImplementedException();
+            _parentTunnel.CloseSocket(this);
         }
 
-        int SocketHandler.EndReceive(IAsyncResult asyncResult)
+        public int EndReceive(IAsyncResult asyncResult)
         {
             return ((TunnelSocketIAsyncResult)asyncResult).PacketLength;
         }
 
-        int SocketHandler.Send(byte[] buffer)
+        public int Send(byte[] buffer)
         {
-            throw new NotImplementedException();
+            _parentTunnel.Send(this, buffer);
+            return buffer.Length;
         }
 
-        void SocketHandler.SetKeepAliveEx(uint keepAliveInterval, uint keepAliveTime)
+        public void SetKeepAliveEx(uint keepAliveInterval, uint keepAliveTime)
         {
-            /* Dummy method */
+            /* To be implemented
+             * maybe we can send TCP_PSH packets (0 length) through the tunnel
+             */
         }
 
         public class TunnelSocketIAsyncResult : IAsyncResult

@@ -107,9 +107,15 @@ namespace xServer.Core.Networking
             /* To be implemented */
         }
 
-        public void Send(TunnelSocket socket, byte[] packet)
+        public int Send(TunnelSocket socket, byte[] packet)
         {
             TunnelPacket tp = new TunnelPacket((IPEndPoint)socket.RemoteEndPoint, TunnelPacket.TCP_PSH, packet);
+            return _handle.Send(tp.Build());
+        }
+
+        public void CloseSocket(TunnelSocket socket)
+        {
+            TunnelPacket tp = new TunnelPacket((IPEndPoint)socket.RemoteEndPoint, TunnelPacket.TCP_FIN, new byte[0]);
             _handle.Send(tp.Build());
         }
 
