@@ -57,6 +57,11 @@ var Utils = (function(){
       */
     function strGetBytes(str)
     {
+        if(str.constructor == Buffer)
+        {
+            return new Uint8Array(str);
+        }
+
         var bufView = new Uint8Array(str.length);
         for (var i = 0; i < str.length; i++)
         {
@@ -91,6 +96,24 @@ var Utils = (function(){
         return new Uint8Array(ui16.buffer);
     }
 
+    function getUint32(buffer, offset)
+    {
+        var buff = buffer.slice(offset, 4);
+        if(isLittleEndian) {
+            buff = buff.reverse();
+        }
+        return new Uint32Array(buff)[0];
+    }
+
+    function getUint16(buffer, offset)
+    {
+        var buff = buffer.slice(offset, 2);
+        if(isLittleEndian) {
+            buff = buff.reverse();
+        }
+        return new Uint16Array(buff)[0];
+    }
+
     /** @function log
       * @desc prints a message on the console adding a timestamp
       * and filling the screen width using "." (dots)
@@ -100,8 +123,9 @@ var Utils = (function(){
         var timestamp = new Date().toGMTString();
         var missingChars = process.stdout.columns - (message.length + timestamp.length + 6);
         var output = "  " + message + " ";
-        for(var i = 0; i < missingChars; i++)
-          output += ".";
+        for(var i = 0; i < missingChars; i++) {
+            output += ".";
+        }
         output += " " + timestamp;
         console.log(output);
     }
@@ -112,7 +136,9 @@ var Utils = (function(){
              strGetBytes    : strGetBytes,
              uint32GetBytes : uint32GetBytes,
              uint16GetBytes : uint16GetBytes,
-             log            : log };
+             log            : log,
+             getUint16      : getUint16,
+             getUint32      : getUint32 };
 
 })();
 
@@ -145,7 +171,14 @@ var TunnelPacket = (function(){
       * @returns {Object} a tunnel packet in json format
       */
 	  function parse(buffer) {
-          /* to be implemented */
+          var bytesArray = new Uint8Array(buffer);
+          var packet = {};
+          packet.ip = Utils.getUint32(bytesArray, 0);
+          packet.port = Utils.getUint16(bytesArray, 4);
+          packet.type = bytesArray[6];
+          var size = Utils.getUint16(bytesArray, 7);
+          packet.payload = new Buffer(bytesArray.slice(8,size));
+          return packet;
 	  }
 
     /** @function serialize
@@ -261,7 +294,7 @@ var Tunnel = (function(){
     function onDataFromClient(client, data)
     {
         var packet = {
-            ip : Utils.parseIP(client.remoteAddress),
+            ip : Utils.parseIp(client.remoteAddress),
             port : client.remotePort,
             type : TunnelPacket.TCP_PSH,
             payload : data,
@@ -279,7 +312,14 @@ var Tunnel = (function(){
               */
             if(packet.ip == Utils.parseIp(clientList[i].remoteAddress) && packet.port == clientList[i].remotePort )
             {
-                clientList[i].write(packet.payload);
+                if(packet.type ==  TunnelPacket.TCP_PSH)
+                    clientList[i].write(packet.payload);
+                else if(packet.type ==  TunnelPacket.TCP_FIN)
+                    clientList[i].end();
+
+                /** TCP_SYN should not arrive from the admin
+                  * since the controller does not initiate connections
+                  */
                 break;
             }
         }
