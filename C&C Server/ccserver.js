@@ -15,7 +15,7 @@ var Utils = (function(){
     const isLittleEndian = os.endianness() == "LE";
 
     /** @function myFunction
-      * @desc Parse a textual IPv4 into an uint32
+      * @desc Parses a textual IPv4 into an uint32
       * @returns {Number} Decimal representation of the IP address
       */
     function parseIp(str)
@@ -33,7 +33,7 @@ var Utils = (function(){
     }
 
     /** @function bufferCopy
-      * @desc Copy a range of items from an array to another
+      * @desc Copies a range of items from an array to another
       */
     function bufferCopy(source, sindex, dest, dindex, count)
     {
@@ -44,7 +44,7 @@ var Utils = (function(){
     }
 
     /** @function hexDumpBuffer
-      * @desc Print an hexadecimal representation of a buffer
+      * @desc Prints an hexadecimal representation of a buffer
       */
     function hexDumpBuffer(buffer)
     {
@@ -53,7 +53,7 @@ var Utils = (function(){
     }
 
     /** @function strGetBytes
-      * @desc convert a string into an Uint8Array
+      * @desc converts a string into an Uint8Array
       */
     function strGetBytes(str)
     {
@@ -71,7 +71,7 @@ var Utils = (function(){
     }
 
     /** @function uint32GetBytes
-      * @desc convert a 32 bits Number into an Uint8Array (Big endian)
+      * @desc converts a 32 bits Number into an Uint8Array (Big endian)
       */
     function uint32GetBytes(value)
     {
@@ -84,7 +84,7 @@ var Utils = (function(){
     }
 
     /** @function uint32GetBytes
-      * @desc convert a 16 bits Number into an Uint8Array (Big endian)
+      * @desc converts a 16 bits Number into an Uint8Array (Big endian)
       */
     function uint16GetBytes(value)
     {
@@ -96,6 +96,9 @@ var Utils = (function(){
         return new Uint8Array(ui16.buffer);
     }
 
+    /** @function getUint32
+      * @desc extracts a 32bits unsigned integer from a buffer
+      */
     function getUint32(buffer, offset)
     {
         var buff = buffer.slice(offset, 4);
@@ -105,6 +108,9 @@ var Utils = (function(){
         return new Uint32Array(buff)[0];
     }
 
+    /** @function getUint16
+      * @desc extracts a 16bits unsigned integer from a buffer
+      */
     function getUint16(buffer, offset)
     {
         var buff = buffer.slice(offset, 2);
@@ -182,7 +188,7 @@ var TunnelPacket = (function(){
 	  }
 
     /** @function serialize
-      * @desc Create a TunnelPacket from its object representation
+      * @desc Creates a TunnelPacket from its object representation
       * @returns {Uint8Array} the buffer to be sent through the tunnel
       */
 	  function serialize(obj) {
@@ -217,6 +223,9 @@ var Tunnel = (function(){
     var listener = null;
     var adminSocket = null;
 
+    /** @function init
+      * @desc Initializes the tunnel (called from CCServer module)
+      */
     function init(_adminSocket, clientPort)
     {
         Utils.log("Controller connected from " + _adminSocket.remoteAddress);
@@ -231,35 +240,39 @@ var Tunnel = (function(){
 
         listener = net.createServer(function(client) {
 
+            /** Installs event listeners facing the client
+              */
             client.on("data", function(data){
                 onDataFromClient(client, data);
             });
-
             client.on("close", function(){
                 onClientDisconnected(client);
             });
-
             client.on("error", function(){});
-
             onClientConnected(client);
-
         });
 
+        /** Starts the listener for clients
+          */
         listener.listen(clientPort, "0.0.0.0", function(){
             Utils.log("Waiting for clients");
         });
 
+        /** Installs event listeners facing the controller
+          */
         adminSocket.on("data", function(data){
             onDataFromAdmin(data);
         });
-
         adminSocket.on("close", function(data){
             Utils.log("Connection with controller closed, Tunnel destroyed");
         });
-
         adminSocket.on("error", function(){});
     }
 
+    /** @function onClientConnected
+      * @desc Takes a new client, adds it to the list
+      * and informs the controller/admin that a new client has been connected
+      */
     function onClientConnected(client)
     {
         var packet = {
@@ -272,6 +285,10 @@ var Tunnel = (function(){
         clientList.push(client);
     }
 
+    /** @function onClientDisconnected
+      * @desc Takes a client, removes it from the list
+      * and informs the controller/admin that a client has been disconnected
+      */
     function onClientDisconnected(client)
     {
         var packet = {
@@ -291,6 +308,10 @@ var Tunnel = (function(){
         }
     }
 
+    /** @function onDataFromClient
+      * @desc Forwards a packet from a client to admin/controller
+      * using the TunnelPacket format
+      */
     function onDataFromClient(client, data)
     {
         var packet = {
@@ -303,6 +324,10 @@ var Tunnel = (function(){
         clientList.push(client);
     }
 
+    /** @function onDataFromClient
+      * @desc Forwards a packet from admin/controller
+      * to the recipient client using the TunnelPacket format
+      */
     function onDataFromAdmin(data)
     {
         var packet = TunnelPacket.parse(data);
@@ -336,6 +361,9 @@ var Tunnel = (function(){
   */
 var CCServer = (function() {
 
+    /** @function init
+      * @desc Initializes everything using the current config
+      */
     function init() {
         net.createServer(function(socket) {
         	StartHandShaking(socket, function(authorized) {
@@ -351,6 +379,9 @@ var CCServer = (function() {
         });
     }
 
+    /** @function StartHandShaking
+      * @desc Authenticates admin/controllers
+      */
     function StartHandShaking(socket, callback) {
         Utils.log("Warning: StartHandShaking is not implemented");
         socket.write("desafio");
