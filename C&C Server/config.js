@@ -5,5 +5,5 @@
 module.exports = {
 	adminPassword : "keep-the-secret",
     adminPort     : 12345,
-    clientPort    : 12346,
+    clientPort    : 4782,
 };

@@ -101,11 +101,11 @@ var Utils = (function(){
       */
     function getUint32(buffer, offset)
     {
-        var buff = buffer.slice(offset, 4);
+        var tmp = new Uint8Array(buffer.slice(offset, offset + 4));
         if(isLittleEndian) {
-            buff = buff.reverse();
+            tmp = tmp.reverse();
         }
-        return new Uint32Array(buff)[0];
+        return new Uint32Array(tmp.buffer)[0];
     }
 
     /** @function getUint16
@@ -113,11 +113,11 @@ var Utils = (function(){
       */
     function getUint16(buffer, offset)
     {
-        var buff = buffer.slice(offset, 2);
+        var tmp = new Uint8Array(buffer.slice(offset, offset + 2));
         if(isLittleEndian) {
-            buff = buff.reverse();
+            tmp = tmp.reverse();
         }
-        return new Uint16Array(buff)[0];
+        return new Uint16Array(tmp.buffer)[0];
     }
 
     /** @function log
@@ -133,7 +133,6 @@ var Utils = (function(){
             output += ".";
         }
         output += " " + timestamp;
-        console.log(output);
     }
 
     return { parseIp        : parseIp,
@@ -183,7 +182,7 @@ var TunnelPacket = (function(){
           packet.port = Utils.getUint16(bytesArray, 4);
           packet.type = bytesArray[6];
           var size = Utils.getUint16(bytesArray, 7);
-          packet.payload = new Buffer(bytesArray.slice(8,size));
+          packet.payload = new Buffer(bytesArray.slice(9, 9 + size));
           return packet;
 	  }
 
@@ -281,6 +280,8 @@ var Tunnel = (function(){
             type : TunnelPacket.TCP_SYN,
             payload : "",
         };
+        var payload = TunnelPacket.serialize(packet);
+        console.log("Enviando paquete de longitud: " + payload.length);
         adminSocket.write(TunnelPacket.serialize(packet));
         clientList.push(client);
     }
@@ -338,9 +339,13 @@ var Tunnel = (function(){
             if(packet.ip == Utils.parseIp(clientList[i].remoteAddress) && packet.port == clientList[i].remotePort )
             {
                 if(packet.type ==  TunnelPacket.TCP_PSH)
+                {
                     clientList[i].write(packet.payload);
+                }
                 else if(packet.type ==  TunnelPacket.TCP_FIN)
+                {
                     clientList[i].end();
+                }
 
                 /** TCP_SYN should not arrive from the admin
                   * since the controller does not initiate connections
