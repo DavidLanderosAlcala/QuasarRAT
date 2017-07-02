@@ -133,6 +133,7 @@ var Utils = (function(){
             output += ".";
         }
         output += " " + timestamp;
+        console.log(output);
     }
 
     return { parseIp        : parseIp,
@@ -281,7 +282,6 @@ var Tunnel = (function(){
             payload : "",
         };
         var payload = TunnelPacket.serialize(packet);
-        console.log("Enviando paquete de longitud: " + payload.length);
         adminSocket.write(TunnelPacket.serialize(packet));
         clientList.push(client);
     }
