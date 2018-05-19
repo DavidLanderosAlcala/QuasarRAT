@@ -389,7 +389,7 @@ var CCServer = (function() {
       */
     function StartHandShaking(socket, callback) {
         Utils.log("Warning: StartHandShaking is not implemented");
-        socket.write("desafio");
+        //socket.write("desafio");
         callback(true);
     }
 
