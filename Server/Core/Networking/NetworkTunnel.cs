@@ -15,6 +15,7 @@ namespace xServer.Core.Networking
         /// </summary>
         Socket _handle;
         byte[] _readBuffer;
+        byte[] _auxiliarBuffer;
 
         /// <summary>
         /// List of sockets connected through the tunnel.
@@ -191,6 +192,7 @@ namespace xServer.Core.Networking
         public void AsyncReceive(IAsyncResult result)
         {
             int receivedBytes = 0;
+            int previousAuxBufferSize = 0;
             try
             {
                 receivedBytes = _handle.EndReceive(result);
@@ -200,17 +202,31 @@ namespace xServer.Core.Networking
                 Disconnect();
                 return;
             }
+            if(_auxiliarBuffer == null)
+            {
+                _auxiliarBuffer = new byte[receivedBytes];
+            }
+            else
+            {
+                previousAuxBufferSize = _auxiliarBuffer.Length;
+                Array.Resize(ref _auxiliarBuffer, _auxiliarBuffer.Length + receivedBytes);
+            }
+            Array.Copy(_readBuffer, 0, _auxiliarBuffer, previousAuxBufferSize, receivedBytes);
+
             int packetLength = 0;
-            if (TunnelPacket.Eval(_readBuffer, receivedBytes, ref packetLength))
+            if (TunnelPacket.Eval(_auxiliarBuffer, _auxiliarBuffer.Length, ref packetLength))
             {
                 byte[] rawPacket = new byte[packetLength];
-                Array.Copy(_readBuffer, rawPacket, packetLength);
+                Array.Copy(_auxiliarBuffer, rawPacket, packetLength);
                 TunnelPacket tp = new TunnelPacket(rawPacket);
                 OnTunnelPacketReceived(tp);
+                _auxiliarBuffer = null;
+                GC.Collect();
             }
             else
             {
                 /* Invalid or incomplete packet */
+                System.Windows.Forms.MessageBox.Show("Failed to process chunked payload");
             }
 
             if (_handle.Connected)
