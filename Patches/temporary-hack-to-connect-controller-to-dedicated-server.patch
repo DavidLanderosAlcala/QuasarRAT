@@ -1,0 +1,14 @@
+diff --git a/Server/Forms/FrmSettings.cs b/Server/Forms/FrmSettings.cs
+index 8139336..cabc1eb 100644
+--- a/Server/Forms/FrmSettings.cs
++++ b/Server/Forms/FrmSettings.cs
+@@ -97,7 +97,8 @@ private void btnListen_Click(object sender, EventArgs e)
+                     }
+                     if(chkNoIPIntegration.Checked)
+                         NoIpUpdater.Start();
+-                    _listenServer.Listen(port, chkIPv6Support.Checked);
++                    //_listenServer.Listen(port, chkIPv6Support.Checked);
++                    _listenServer.CreateTunnel(System.Net.IPAddress.Parse("127.0.0.1"), 12345);
+                 }
+                 finally
+                 {
